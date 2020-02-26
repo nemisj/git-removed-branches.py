@@ -5,20 +5,27 @@ import re
 import argparse
 
 def find_local_branches(remote):
-  branches = subprocess.check_output(["git", "branch"]).decode("utf-8")
+  branches = subprocess.check_output(["git", "branch"], encoding="utf-8");
   correct_branches = [];
   for line in branches.splitlines():
     # take out the active branch, we are only intersted in the name of the
     # branch
     branch_name = re.sub(r"\*", "", line).strip()
 
+    # skip empty lines
+    if branch_name is "":
+      continue
+
     # find out what is the remote of the branch
     try:
-      remoteName = subprocess.check_output(["git", "config", "--get", "branch.%s.remote" % branch_name]).decode("utf-8")
+      remoteName = subprocess.check_output(
+        ["git", "config", "--get", "branch.%s.remote" % branch_name],
+        encoding="utf-8"
+      )
     except Exception as e:
       # Branch has no config"
       remoteName = ""
-
+    
     remoteName = remoteName.strip();
 
     if "%s" % remoteName == remote:
@@ -28,7 +35,7 @@ def find_local_branches(remote):
 
 
 def find_remote_branches(remote):
-  branches = subprocess.check_output(["git", "branch", "-r"]).decode("utf-8")
+  branches = subprocess.check_output(["git", "branch", "-r"], encoding="utf-8")
   correct_branches = [];
 
   for line in branches.splitlines():
@@ -43,7 +50,7 @@ def find_live_branches(remote):
   correct_branches = []
 
   try:
-    branches = subprocess.check_output(["git", "ls-remote", "-h", remote]).decode("utf-8")
+    branches = subprocess.check_output(["git", "ls-remote", "-h", remote], encoding="utf-8")
   except Exception as e:
     #TODO: test that this is error 128
 
