@@ -1,12 +1,11 @@
 import subprocess
 import re
 import argparse
-from collections import deque
 
 
 def find_local_branches(remote):
     branches = subprocess.check_output(["git", "branch"], encoding="utf-8")
-    correct_branches = deque()
+    correct_branches = []
 
     # take out the active branch, we are only intersted in the name of the
     # branch
@@ -35,7 +34,7 @@ def find_local_branches(remote):
 
 def find_remote_branches(remote):
     branches = subprocess.check_output(["git", "branch", "-r"], encoding="utf-8")
-    correct_branches = deque()
+    correct_branches = []
 
     for line in branches.splitlines():
         branch_name = line.strip()
@@ -48,7 +47,7 @@ def find_remote_branches(remote):
 
 
 def find_live_branches(remote):
-    correct_branches = deque()
+    correct_branches = []
 
     try:
         branches = subprocess.check_output(["git", "ls-remote", "-h", remote], encoding="utf-8")
@@ -68,7 +67,7 @@ def find_live_branches(remote):
 
 
 def delete_branches(branches, prune=False, force=False):
-    broken = deque()
+    broken = []
 
     if not branches:
         print("No removed branches found")
