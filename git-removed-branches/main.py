@@ -1,69 +1,70 @@
-#!/usr/bin/env python
-
 import subprocess
 import re
 import argparse
+from collections import deque
+
 
 def find_local_branches(remote):
-  branches = subprocess.check_output(["git", "branch"], encoding="utf-8");
-  correct_branches = [];
-  for line in branches.splitlines():
+    branches = subprocess.check_output(["git", "branch"], encoding="utf-8")
+    correct_branches = deque()
+
     # take out the active branch, we are only intersted in the name of the
     # branch
-    branch_name = re.sub(r"\*", "", line).strip()
+    for line in branches.splitlines():
+        branch_name = re.sub(r"\*", "", line).strip()
 
-    # skip empty lines
-    if branch_name is "":
-      continue
+        # skip empty lines
+        if branch_name == "":
+            continue
 
-    # find out what is the remote of the branch
-    try:
-      remoteName = subprocess.check_output(
-        ["git", "config", "--get", "branch.%s.remote" % branch_name],
-        encoding="utf-8"
-      )
-    except Exception as e:
-      # Branch has no config"
-      remoteName = ""
-    
-    remoteName = remoteName.strip();
+        # find out what is the remote of the branch
+        try:
+            branch_name = "branch.{}.remote".format(branch_name)
+            remoteName = subprocess.check_output(["git", "config", "--get", branch_name], encoding="utf-8")
+        except Exception:
+            # Branch has no config"
+            remoteName = ""
 
-    if "%s" % remoteName == remote:
-      correct_branches.append(branch_name)
+        remoteName = remoteName.strip()
 
-  return correct_branches
+        if remoteName == remote:
+            correct_branches.append(branch_name)
+
+    return correct_branches
 
 
 def find_remote_branches(remote):
-  branches = subprocess.check_output(["git", "branch", "-r"], encoding="utf-8")
-  correct_branches = [];
+    branches = subprocess.check_output(["git", "branch", "-r"], encoding="utf-8")
+    correct_branches = deque()
 
-  for line in branches.splitlines():
-    branch_name = line.strip();
-    result = re.search(r"%s/([^\s]*)" % remote, branch_name)
-    if result:
-      correct_branches.append(result.group(1))
+    for line in branches.splitlines():
+        branch_name = line.strip()
+        result = re.search(r"%s/([^\s]*)" % remote, branch_name)
 
-  return correct_branches
+        if result:
+            correct_branches.append(result.group(1))
+
+    return correct_branches
+
 
 def find_live_branches(remote):
-  correct_branches = []
+    correct_branches = deque()
 
-  try:
-    branches = subprocess.check_output(["git", "ls-remote", "-h", remote], encoding="utf-8")
-  except Exception as e:
-    #TODO: test that this is error 128
+    try:
+        branches = subprocess.check_output(["git", "ls-remote", "-h", remote], encoding="utf-8")
+    except Exception:
+        # TODO: test that this is error 128
+        return None
+    else:
 
-    return None
+        for line in branches.splitlines():
+            branch_name = line.strip()
+            result = re.search(r"refs/heads/([^\s]*)", branch_name)
 
-  for line in branches.splitlines():
-    branch_name = line.strip();
-    result = re.search(r"refs/heads/([^\s]*)", branch_name)
+            if result:
+                correct_branches.append(result.group(1))
 
-    if result:
-      correct_branches.append(result.group(1))
-
-  return correct_branches
+        return correct_branches
 
 
 def delete_branches(branches, prune=False, force=False):
@@ -166,7 +167,7 @@ def main():
     # prepare for removing
     remote = args.remote
     remote_branches = find_remote_branches(remote)
-    local_branches = find_local_branches(remote) 
+    local_branches = find_local_branches(remote)
     live_branches = find_live_branches(remote)
     remote_branches = analyze_live_and_remote(live_branches, remote_branches)
 
