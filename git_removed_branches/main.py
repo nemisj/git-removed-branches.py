@@ -68,112 +68,114 @@ def find_live_branches(remote):
 
 
 def delete_branches(branches, prune=False, force=False):
+    broken = deque()
 
-  broken = []
+    if not branches:
+        print("No removed branches found")
+        return
 
-  if not branches:
-    print("No removed branches found")
-    return
+    if not prune:
+        print("Found removed branches:")
 
-  if not prune:
-    print("Found removed branches:")
+    print("")
 
-  print("")
+    for branch_name in branches:
+        if (prune):
+            print("")
+            print("Removing %s" % branch_name)
 
-  for branch_name in branches:
-    if (prune):
-      print("")
-      print("Removing %s" % branch_name)
+            if force:
+                deleteFlag = "-D"
+            else:
+                deleteFlag = "-d"
 
-      if force:
-        deleteFlag = "-D"
-      else:
-        deleteFlag = "-d"
+            return_code = subprocess.call(["git", "branch", deleteFlag, branch_name])
 
-      return_code = subprocess.call(["git", "branch", deleteFlag, branch_name]);
-      if return_code != 0:
-        print("ERROR: Unable to remove branch")
-        broken.append(branch_name)
+            if return_code != 0:
+                print("ERROR: Unable to remove branch")
+                broken.append(branch_name)
+        else:
+            print("  - %s" % branch_name)
+
+    print("")
+    if broken:
+        print("Not all branches are removed:")
+
+        for branch_name in broken:
+            print("  - %s" % branch_name)
+
+        print("INFO: To force removal use --force flag")
+    elif prune:
+        print("INFO: All branches are removed")
     else:
-      print("  - %s" % branch_name)
+        print("INFO: To remove all found branches use --prune flag")
 
-  print("")
-  if broken:
-    print("Not all branches are removed:")
-
-    for branch_name in broken:
-      print("  - %s" % branch_name)
-
-    print("INFO: To force removal use --force flag")
-
-  elif prune:
-    print("INFO: All branches are removed")
-
-  else:
-    print("INFO: To remove all found branches use --prune flag")
 
 def analyze_live_and_remote(live_branches, remote_branches):
-  if live_branches == None:
-    return remote_branches
+    if live_branches is None:
+        return remote_branches
 
-  notFound = []
+    notFound = []
 
-  for branch_name in remote_branches:
-    if branch_name != 'HEAD':
-      try:
-        index = live_branches.index(branch_name)
-      except ValueError:
-        notFound.append(branch_name)
+    for branch_name in remote_branches:
+        if branch_name != 'HEAD':
+            try:
+                index = live_branches.index(branch_name)
+            except ValueError:
+                notFound.append(branch_name)
 
-  if notFound:
-    print("WARNING: Your git repository is outdated, please run \"git fetch -p\"")
-    print("         Following branches are not pruned:")
-    print("")
+    if notFound:
+        print("WARNING: Your git repository is outdated, please run \"git fetch -p\"")
+        print("         Following branches are not pruned:")
+        print("")
 
-    for name in notFound:
-      print("  - %s" % name)
-    print("")
+        for name in notFound:
+            print("  - {}".format(name))
+        print("")
 
-  return live_branches
+    return live_branches
+
 
 def find_to_remove(local=[], remote=[]):
-  will_remove = []
+    will_remove = []
 
-  for branch_name in local:
-    try:
-      index = remote.index(branch_name)
-    except ValueError:
-      will_remove.append(branch_name)
+    for branch_name in local:
+        try:
+            index = remote.index(branch_name)
+        except ValueError:
+            will_remove.append(branch_name)
 
-  return will_remove
+    return will_remove
+
 
 def main():
-  parser = argparse.ArgumentParser(description="Remove local branches, which are no longer available in the remote")
-  parser.add_argument("--prune", action="store_true", help="Remove branches")
-  parser.add_argument("--force", action="store_true", help="Force deletion")
-  parser.add_argument("--remote", default="origin", help="Remote name")
-  args = parser.parse_args()
+    parser = argparse.ArgumentParser(description="Remove local branches, which are no longer available in the remote")
+    parser.add_argument("--prune", action="store_true", help="Remove branches")
+    parser.add_argument("--force", action="store_true", help="Force deletion")
+    parser.add_argument("--remote", default="origin", help="Remote name")
+    args = parser.parse_args()
 
-  # test whether this is the git repo
-  try:
-    subprocess.check_output(["git", "rev-parse", "--show-toplevel"]);
-    is_git = True
-  except Exception:
-    is_git = False
+    # test whether this is the git repo
+    try:
+        subprocess.check_output(["git", "rev-parse", "--show-toplevel"])
+        is_git = True
+    except Exception:
+        is_git = False
 
-  if is_git:
-    # walk through the local branches
-    # if local branch is not in remote branch list
-    # prepare for removing
-    remote = args.remote
-    remote_branches = find_remote_branches(remote)
-    local_branches = find_local_branches(remote)
-    live_branches = find_live_branches(remote)
-    remote_branches = analyze_live_and_remote(live_branches, remote_branches)
+    if is_git:
+        # walk through the local branches
+        # if local branch is not in remote branch list
+        # prepare for removing
+        remote = args.remote
+        remote_branches = find_remote_branches(remote)
+        local_branches = find_local_branches(remote)
+        live_branches = find_live_branches(remote)
+        remote_branches = analyze_live_and_remote(live_branches, remote_branches)
 
     to_remove = find_to_remove(local=local_branches, remote=remote_branches)
 
     delete_branches(to_remove, args.prune, args.force)
 
+
 if __name__ == "__main__":
-  main()
+    main()
