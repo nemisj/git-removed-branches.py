@@ -1,26 +1,29 @@
+from __future__ import print_function
 import subprocess
 import re
 import argparse
 
 
 def find_local_branches(remote):
-    branches = subprocess.check_output(["git", "branch"], encoding="utf-8")
+    branches = subprocess.check_output(["git", "branch"])
     correct_branches = []
 
-    # take out the active branch, we are only intersted in the name of the
+    # take out the active branch, we are only interested in the name of the
     # branch
-    for line in branches.splitlines():
-        branch_name = re.sub(r"\*", "", line).strip()
+    active_regex = re.compile(r"\*")
 
-        # skip empty lines
-        if branch_name == "":
+    for line in branches.splitlines():
+        branch_name = line.strip()
+
+        if active_regex.match(branch_name):
             continue
 
         # find out what is the remote of the branch
         try:
-            branch_name = "branch.{}.remote".format(branch_name)
-            remoteName = subprocess.check_output(["git", "config", "--get", branch_name], encoding="utf-8")
-        except Exception:
+            full_branch_name = "branch.{}.remote".format(branch_name)
+            remoteName = subprocess.check_output(["git", "config", "--get", full_branch_name])
+        except subprocess.CalledProcessError as e:
+            print(e)
             # Branch has no config"
             remoteName = ""
 
