@@ -2,6 +2,7 @@ from __future__ import print_function
 import subprocess
 import re
 import argparse
+from collections import deque
 
 
 def find_local_branches(remote):
@@ -23,9 +24,7 @@ def find_local_branches(remote):
             full_branch_name = "branch.{}.remote".format(branch_name)
             remoteName = subprocess.check_output(["git", "config", "--get", full_branch_name])
         except subprocess.CalledProcessError as e:
-            print(e)
-            # Branch has no config"
-            remoteName = ""
+            raise Exception("Failed to execute the git program: {}".format(str(e)))
 
         remoteName = remoteName.strip()
 
@@ -36,12 +35,13 @@ def find_local_branches(remote):
 
 
 def find_remote_branches(remote):
-    branches = subprocess.check_output(["git", "branch", "-r"], encoding="utf-8")
+    branches = subprocess.check_output(["git", "branch", "-r"])
     correct_branches = []
+    regex = re.compile(r"{}/([^\s]*)".format(remote))
 
     for line in branches.splitlines():
         branch_name = line.strip()
-        result = re.search(r"%s/([^\s]*)" % remote, branch_name)
+        result = regex.search(branch_name)
 
         if result:
             correct_branches.append(result.group(1))
@@ -53,15 +53,17 @@ def find_live_branches(remote):
     correct_branches = []
 
     try:
-        branches = subprocess.check_output(["git", "ls-remote", "-h", remote], encoding="utf-8")
-    except Exception:
+        branches = subprocess.check_output(["git", "ls-remote", "-h", remote])
+    except subprocess.CalledProcessError as e:
+        print("Failed to execute the git program: {}".format(str(e)))
         # TODO: test that this is error 128
         return None
     else:
+        regex = re.compile(r"refs/heads/([^\s]*)")
 
         for line in branches.splitlines():
             branch_name = line.strip()
-            result = re.search(r"refs/heads/([^\s]*)", branch_name)
+            result = regex.search(branch_name)
 
             if result:
                 correct_branches.append(result.group(1))
@@ -83,8 +85,7 @@ def delete_branches(branches, prune=False, force=False):
 
     for branch_name in branches:
         if (prune):
-            print("")
-            print("Removing %s" % branch_name)
+            print("\nRemoving {}".format(branch_name))
 
             if force:
                 deleteFlag = "-D"
@@ -100,11 +101,12 @@ def delete_branches(branches, prune=False, force=False):
             print("  - %s" % branch_name)
 
     print("")
+
     if broken:
-        print("Not all branches are removed:")
+        print("Not all branches were removed:")
 
         for branch_name in broken:
-            print("  - %s" % branch_name)
+            print("  - {}".format(branch_name))
 
         print("INFO: To force removal use --force flag")
     elif prune:
@@ -114,40 +116,50 @@ def delete_branches(branches, prune=False, force=False):
 
 
 def analyze_live_and_remote(live_branches, remote_branches):
+
     if live_branches is None:
         return remote_branches
 
-    notFound = []
+    notFound = deque()
+    to_search = set(live_branches)
 
     for branch_name in remote_branches:
+
         if branch_name != 'HEAD':
-            try:
-                index = live_branches.index(branch_name)
-            except ValueError:
+            if branch_name not in to_search:
                 notFound.append(branch_name)
 
     if notFound:
-        print("WARNING: Your git repository is outdated, please run \"git fetch -p\"")
-        print("         Following branches are not pruned:")
-        print("")
+        msg = """
+WARNING: Your git repository is outdated, please run "git fetch -p"
+        The following branches are not pruned:
+"""
+        print(msg)
 
         for name in notFound:
             print("  - {}".format(name))
+
         print("")
 
     return live_branches
 
 
 def find_to_remove(local=[], remote=[]):
-    will_remove = []
+
+    if len(local) == 0:
+        return []
+
+    if len(remote) == 0:
+        return local
+
+    will_remove = deque()
+    to_search = set(remote)
 
     for branch_name in local:
-        try:
-            index = remote.index(branch_name)
-        except ValueError:
+        if branch_name not in to_search:
             will_remove.append(branch_name)
 
-    return will_remove
+    return list(will_remove)
 
 
 def main():
@@ -157,17 +169,13 @@ def main():
     parser.add_argument("--remote", default="origin", help="Remote name")
     args = parser.parse_args()
 
-    # test whether this is the git repo
+    # test whether this is a git repo
     try:
         subprocess.check_output(["git", "rev-parse", "--show-toplevel"])
-        is_git = True
-    except Exception:
-        is_git = False
-
-    if is_git:
-        # walk through the local branches
-        # if local branch is not in remote branch list
-        # prepare for removing
+    except subprocess.CalledProcessError:
+        pass
+    else:
+        # walk through the local branches if local branch is not in remote branch list prepare for removing
         remote = args.remote
         remote_branches = find_remote_branches(remote)
         local_branches = find_local_branches(remote)
@@ -175,7 +183,6 @@ def main():
         remote_branches = analyze_live_and_remote(live_branches, remote_branches)
 
     to_remove = find_to_remove(local=local_branches, remote=remote_branches)
-
     delete_branches(to_remove, args.prune, args.force)
 
 

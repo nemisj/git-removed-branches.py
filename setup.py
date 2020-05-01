@@ -23,21 +23,25 @@ setup(
     author='Maks Nemisj',
     author_email='info@nemisj.com',
     keywords='git branches development tools',
-    python_requires='>=2.7',
+    license='License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+    packages=find_packages(),
+    python_requires='>=2.7, >=3.5',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
         'Natural Language :: English',
-        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Framework :: Pytest',
         'Framework :: Flake8',
-        'License :: Other/Proprietary License',
-        'Operating System :: POSIX :: Linux'
+        'Operating System :: POSIX :: Linux',
+        'Operating System :: POSIX :: BSD',
+        'Operating System :: MacOS :: MacOS X'
     ],
+    scripts=['bin/removed-branches'],
     entry_points={
         'console_scripts': [
             'git-removed-branches=main:main',
